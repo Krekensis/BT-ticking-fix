@@ -11,11 +11,11 @@ class Program {
     static void Main() {
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
-        Application.Run(new KeeperContext());
+        Application.Run(new SilentBTKeeperContext());
     }
 }
 
-public class KeeperContext : ApplicationContext {
+public class SilentBTKeeperContext : ApplicationContext {
     private NotifyIcon trayIcon;
     private WaveOutEvent output;
     private SilentProvider silentProvider;
@@ -23,20 +23,18 @@ public class KeeperContext : ApplicationContext {
     private string selectedDevice;
     private bool isActive;
 
-    public KeeperContext() {
-
-        //StartupManager.ForceEnable("BT-ticking-fix");
-
+    public SilentBTKeeperContext() {
         trayIcon = new NotifyIcon() {
             Icon = new Icon("Assets/appicon.ico"),
             ContextMenuStrip = new ContextMenuStrip(),
             Visible = true,
-            Text = "Bluetooth ticking fix",
+            Text = "Silent BT Keeper"
         };
 
+        //trayIcon.ContextMenuStrip.Items.Add("Settings", null, ShowSettings);
         trayIcon.ContextMenuStrip.Items.Add("Exit", null, Exit);
 
-        trayIcon.MouseClick += (s, e) => ShowSettings(s, e);
+        trayIcon.DoubleClick += (s, e) => ShowSettings(s, e);
     }
 
     private void ShowSettings(object sender, EventArgs e) {
@@ -47,7 +45,8 @@ public class KeeperContext : ApplicationContext {
 
                 if (newActiveState && !isActive) {
                     StartMonitoring();
-                } else if (!newActiveState && isActive) {
+                }
+                else if (!newActiveState && isActive) {
                     StopMonitoring();
                 }
 
@@ -58,14 +57,15 @@ public class KeeperContext : ApplicationContext {
 
     private void StartMonitoring() {
         isActive = true;
-        trayIcon.Text = "BT ticking fix - Active";
+        trayIcon.Text = $"Silent BT Keeper - Active ({selectedDevice})";
+        
         monitorTimer = new System.Threading.Timer(MonitorDevice, null, 0, 5000);
     }
 
     private void StopMonitoring() {
         isActive = false;
-        trayIcon.Text = "BT ticking fix - Inactive";
-
+        trayIcon.Text = "Silent BT Keeper - Inactive";
+        
         monitorTimer?.Dispose();
         monitorTimer = null;
 
@@ -90,7 +90,7 @@ public class KeeperContext : ApplicationContext {
                     output = new WaveOutEvent();
                     output.Init(silentProvider);
                     output.Play();
-                } catch { }
+                } catch (Exception ex) { }
             }
         } else {
             if (output != null) {
@@ -107,9 +107,7 @@ public class KeeperContext : ApplicationContext {
             var enumr = new MMDeviceEnumerator();
             var devices = enumr.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active);
 
-            return devices.Any(d =>
-                d.FriendlyName.Contains(deviceName, StringComparison.OrdinalIgnoreCase)
-            );
+            return devices.Any(d => d.FriendlyName.Contains(deviceName, StringComparison.OrdinalIgnoreCase));
         } catch {
             return false;
         }
@@ -145,23 +143,23 @@ public class SettingsForm : Form {
     }
 
     private void InitializeComponent(string currentDevice, bool currentActiveState) {
-        Text = "Bluetooth ticking fix - Settings";
-        Size = new Size(400, 200);
-        FormBorderStyle = FormBorderStyle.FixedDialog;
-        MaximizeBox = false;
-        MinimizeBox = false;
-        StartPosition = FormStartPosition.CenterScreen;
+        this.Text = "Silent BT Keeper - Settings";
+        this.Size = new Size(400, 200);
+        this.FormBorderStyle = FormBorderStyle.FixedDialog;
+        this.MaximizeBox = false;
+        this.MinimizeBox = false;
+        this.StartPosition = FormStartPosition.CenterScreen;
 
         Label deviceLabel = new Label() {
             Text = "Select Bluetooth Device:",
             Location = new Point(20, 20),
-            Size = new Size(350, 20),
+            Size = new Size(350, 20)
         };
 
         deviceComboBox = new ComboBox() {
             Location = new Point(20, 45),
             Size = new Size(340, 25),
-            DropDownStyle = ComboBoxStyle.DropDownList,
+            DropDownStyle = ComboBoxStyle.DropDownList
         };
         deviceComboBox.SelectedIndexChanged += DeviceComboBox_SelectedIndexChanged;
 
@@ -170,14 +168,14 @@ public class SettingsForm : Form {
             Location = new Point(20, 85),
             Size = new Size(340, 25),
             Checked = currentActiveState,
-            Enabled = !string.IsNullOrEmpty(currentDevice),
+            Enabled = !string.IsNullOrEmpty(currentDevice)
         };
 
         okButton = new Button() {
             Text = "OK",
             Location = new Point(200, 120),
             Size = new Size(80, 30),
-            DialogResult = DialogResult.OK,
+            DialogResult = DialogResult.OK
         };
         okButton.Click += OkButton_Click;
 
@@ -185,15 +183,15 @@ public class SettingsForm : Form {
             Text = "Cancel",
             Location = new Point(290, 120),
             Size = new Size(80, 30),
-            DialogResult = DialogResult.Cancel,
+            DialogResult = DialogResult.Cancel
         };
 
-        Controls.AddRange(new Control[] {
+        this.Controls.AddRange(new Control[] {
             deviceLabel, deviceComboBox, activeCheckBox, okButton, cancelButton
         });
 
-        AcceptButton = okButton;
-        CancelButton = cancelButton;
+        this.AcceptButton = okButton;
+        this.CancelButton = cancelButton;
 
         SelectedDevice = currentDevice;
         IsActive = currentActiveState;
@@ -220,11 +218,10 @@ public class SettingsForm : Form {
         deviceComboBox.Items.AddRange(devices.ToArray());
         deviceComboBox.Enabled = true;
 
-        if (!string.IsNullOrEmpty(SelectedDevice) &&
-            deviceComboBox.Items.Contains(SelectedDevice)) {
+        if (!string.IsNullOrEmpty(SelectedDevice) && deviceComboBox.Items.Contains(SelectedDevice))
             deviceComboBox.SelectedItem = SelectedDevice;
-        }
     }
+
 
     private void DeviceComboBox_SelectedIndexChanged(object sender, EventArgs e) {
         activeCheckBox.Enabled = deviceComboBox.SelectedItem != null;
@@ -232,13 +229,9 @@ public class SettingsForm : Form {
 
     private void OkButton_Click(object sender, EventArgs e) {
         if (deviceComboBox.SelectedItem == null && activeCheckBox.Checked) {
-            MessageBox.Show(
-                "Please select a device before enabling monitoring.",
-                "No Device Selected",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Warning
-            );
-            DialogResult = DialogResult.None;
+            MessageBox.Show("Please select a device before enabling monitoring.", 
+                "No Device Selected", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            this.DialogResult = DialogResult.None;
             return;
         }
 
